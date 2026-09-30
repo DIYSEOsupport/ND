@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>Private Small Business Directory</title>
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text: #212529;
+      --text-muted: #5f6368;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      margin: 0; 
+      padding: 24px; 
+      background: var(--bg); 
+      color: var(--text); 
+    }
+    .app-container { 
+      max-width: 1200px; 
+      margin: auto; 
+    }
+    header {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 26px; color: var(--primary); }
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      background: #e8f0fe;
+      color: var(--primary);
+    }
+    .error-box { background: #fce8e6; color: #c5221f; padding: 16px; border-radius: 8px; font-weight: bold; }
+    
+    /* Directory Cards Layout Grid - Ready for Claude/Gemini Customizations */
+    .directory-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .biz-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e8eaed;
+      transition: transform 0.2s;
+    }
+    .biz-card:hover { transform: translateY(-2px); }
+    .biz-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; color: #202124; }
+    .biz-tag { display: inline-block; background: #e8f0fe; color: var(--primary); font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: 500; margin-bottom: 12px; }
+    .biz-desc { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px; }
+    .biz-meta { font-size: 13px; border-top: 1px solid #f1f3f4; padding-top: 12px; color: var(--text-muted); }
+    .meta-item { margin-bottom: 6px; display: flex; align-items: center; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <header>
+      <h1>Private Business Directory</h1>
+      <div id="status" class="status-badge">🔄 Decrypting and loading dataset values...</div>
+    </header>
+
+    <!-- Visual Output Canvas -->
+    <div id="directoryCanvas" class="directory-grid"></div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(parseSecureData)
+        .withFailureHandler(function(err) {
+          showError("Google Apps Engine Core Error: " + err.message);
+        })
+        .getSheetData();
+    };
+
+    function parseSecureData(jsonString) {
+      try {
+        // Safe, un-bugged conversion of text back into usable array rows
+        var matrix = JSON.parse(jsonString);
+        
+        if (matrix.error) {
+          showError(matrix.error);
+          return;
+        }
+
+        var statusDiv = document.getElementById('status');
+        statusDiv.style.background = "#e6f4ea";
+        statusDiv.style.color = "#137333";
+        statusDiv.innerHTML = "✅ Live Directory Connected Safely";
+
+        buildDirectoryCards(matrix);
+      } catch (e) {
+        showError("Data parsing compilation error: " + e.message);
+      }
+    }
+
+    function buildDirectoryCards(rows) {
+      var canvas = document.getElementById('directoryCanvas');
+      canvas.innerHTML = ""; // Clear loader text
+
+      // Column Map Reference Key from sheet array indices:
+      // rows[i][1] = Business Name
+      // rows[i][2] = Category 
+      // rows[i][4] = Area Served
+      // rows[i][20] = Phone
+      // rows[i][22] = Email
+      // rows[i][28] = Slogan / About description
+
+      // Loop through data rows skipping row 0 (headers)
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i];
+        
+        // Skip trailing empty spacing rows if found
+        if (!row[1] || row[1].toString().trim() === "") continue;
+
+        var name = row[1] || "Unnamed Business";
+        var category = row[2] || "General Service";
+        var location = row[4] || "Local Area";
+        var phone = row[20] || "No Phone Added";
+        var email = row[22] || "No Email Added";
+        var description = row[28] || "No description provided.";
+
+        // HTML injection template block
+        var cardHTML = `
+          <div class="biz-card">
+            <div class="biz-title">${name}</div>
+            <div class="biz-tag">${category}</div>
+            <div class="biz-desc">${description}</div>
+            <div class="biz-meta">
+              <div class="meta-item">📍 <b>Serves:</b> &nbsp;${location}</div>
+              <div class="meta-item">📞 <b>Phone:</b> &nbsp;${phone}</div>
+              <div class="meta-item">✉️ <b>Email:</b> &nbsp;${email}</div>
+            </div>
+          </div>
+        `;
+        canvas.innerHTML += cardHTML;
+      }
+    }
+
+    function showError(msg) {
+      var statusDiv = document.getElementById('status');
+      statusDiv.className = "error-box";
+      statusDiv.innerHTML = "⚠️ Setup Check Required: " + msg;
+    }
+  </script>
+</body>
+</html>
